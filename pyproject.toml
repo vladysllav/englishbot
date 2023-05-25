@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "englishbot"
+version = "0.1.0"
+description = "English Bot for It Brains"
+authors = ["Vladyslav Ushakov and best students"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-telegram-bot = "^20.3"
+python-dotenv = "^1.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
