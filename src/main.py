@@ -70,7 +70,65 @@ class EnglishSkillsBot:
             reply_answer = self.create_lvl_button()
             await query.message.reply_text("Please select your English level", reply_markup=reply_answer)
         else:
-            await query.answer("You selected level: " + query.data)
+            level = query.data
+            await self.send_question(update, context, level)
+
+    async def send_question(self, update: Update, context: CallbackContext, level: str):
+        questions = self.get_questions(level)
+
+        for question in questions:
+            question_text = question['question']
+            options = question['options']
+
+            keyboard = [
+                [InlineKeyboardButton(option, callback_data=option)] for option in options
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=question_text,
+                                           reply_markup=reply_markup)
+
+    def get_questions(self, level: str):
+        if level == "Beginner":
+            return [
+                {
+                    'question': 'Question 1 for beginners',
+                    'options': ['A', 'B', 'C'],
+                    'correct_answer': 'B'
+                },
+                {
+                    'question': 'Question 2 for beginners',
+                    'options': ['A', 'B', 'C'],
+                    'correct_answer': 'A'
+                },
+            ]
+        elif level == "Intermediate":
+            return [
+                {
+                    'question': 'Question 1 for intermediate level',
+                    'options': ['A', 'B', 'C'],
+                    'correct_answer': 'B'
+                },
+                {
+                    'question': 'Question 2 for intermediate level',
+                    'options': ['A', 'B', 'C'],
+                    'correct_answer': 'A'
+                },
+            ]
+        elif level == "Advanced":
+            return [
+                {
+                    'question': 'Question 1 for advanced level',
+                    'options': ['A', 'B', 'C'],
+                    'correct_answer': 'C'
+                },
+                {
+                    'question': 'Question 2 for advanced level',
+                    'options': ['A', 'B', 'C'],
+                    'correct_answer': 'A'
+                },
+            ]
+        else:
+            return []
 
     def check_english_skills(self, text):
         # Add your English skills checking logic here
