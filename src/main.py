@@ -5,6 +5,8 @@ import os
 
 # Load environment variables from .env file
 load_dotenv()
+# {user_id: user_result}
+user_info_test = {324552: 50, 323552: 10, 322552: 50, 321552: 40, 327552: 60, 327542: 20, 324542: 30}
 
 
 class EnglishSkillsBot:
@@ -16,7 +18,11 @@ class EnglishSkillsBot:
         Create Start button
         :return: InlineKeyboardMarkup Start button
         """
-        return InlineKeyboardMarkup([[InlineKeyboardButton("Start", callback_data="start")]])
+        buttons = [
+            [InlineKeyboardButton("Start", callback_data="start")],
+            [InlineKeyboardButton("Statistics", callback_data="statistics")]
+        ]
+        return InlineKeyboardMarkup(buttons)
 
     def create_lvl_button(self):
         """
@@ -45,9 +51,6 @@ class EnglishSkillsBot:
         """
         Handles the /stat command and sends statistic info.
         """
-        # {user_id: user_result}
-        user_info_test = {324552: 50, 323552: 10, 322552: 50, 321552: 40, 327552: 60, 327542: 20, 324542: 30}
-
         users_worse_result = [userid for userid in user_info_test if user_info_test[userid] < user_info_test[324552]]
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=f"You have passed this test better than "
@@ -65,10 +68,17 @@ class EnglishSkillsBot:
         :param update: The incoming update.
         :param context: The context object for handlers.
         """
+        user_id = 327542
         query = update.callback_query
         if query.data == "start":
             reply_answer = self.create_lvl_button()
             await query.message.reply_text("Please select your English level", reply_markup=reply_answer)
+        elif query.data == "statistics":
+            if user_id in user_info_test:
+                await self.statistics(update, context)
+            else:
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text="You have to answer the questions first!")
         else:
             await query.answer("You selected level: " + query.data)
 
@@ -81,14 +91,12 @@ class EnglishSkillsBot:
 
     def start_bot(self):
         start_handler = CommandHandler('start', self.start)
-        statistics_handler = CommandHandler('stat', self.statistics)
         text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text)
         callback_handler = CallbackQueryHandler(self.choose_level_callback)
 
         self.app.add_handler(start_handler)
         self.app.add_handler(text_handler)
         self.app.add_handler(callback_handler)
-        self.app.add_handler(statistics_handler)
 
         self.app.run_polling()
 
