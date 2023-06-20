@@ -12,7 +12,7 @@ user_info_test = {324552: 50, 323552: 10, 322552: 50, 321552: 40, 327552: 60, 32
 class EnglishSkillsBot:
     def __init__(self):
         self.app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
-
+        self.user_data = {}
     def create_start_button(self):
         """
         Create Start button
@@ -70,6 +70,7 @@ class EnglishSkillsBot:
         """
         user_id = 327542
         query = update.callback_query
+
         if query.data == "start":
             reply_answer = self.create_lvl_button()
             await query.message.reply_text("Please select your English level", reply_markup=reply_answer)
@@ -81,6 +82,10 @@ class EnglishSkillsBot:
                                                text="You have to answer the questions first!")
         else:
             level = query.data
+            if user_id in self.user_data:
+                self.user_data[user_id]['level'] = level
+            else:
+                self.user_data[user_id] = {'level': level}
             await self.send_question(update, context, level)
 
     async def send_question(self, update: Update, context: CallbackContext, level: str):
@@ -89,6 +94,7 @@ class EnglishSkillsBot:
         for question in questions:
             question_text = question['question']
             options = question['options']
+            correct_answer = question['correct_answer']
 
             keyboard = [
                 [InlineKeyboardButton(option, callback_data=option)] for option in options
@@ -96,6 +102,29 @@ class EnglishSkillsBot:
             reply_markup = InlineKeyboardMarkup(keyboard)
             await context.bot.send_message(chat_id=update.effective_chat.id, text=question_text,
                                            reply_markup=reply_markup)
+
+            context.user_data['current_question'] = {
+                'correct_answer': correct_answer
+            }
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text="No questions available for this level.")
+
+    async def answer_handler(self, update: Update, context: CallbackContext):
+
+        query = update.callback_query
+        user_answer = query.data
+        current_question = context.user_data.get('current_question')
+
+        if current_question and 'correct_answer' in current_question:
+            correct_answer = current_question['correct_answer']
+
+            if user_answer == correct_answer:
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text="Correct!")
+            else:
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text="Incorrect!")
 
     def get_questions(self, level: str):
         if level == "Beginner":
