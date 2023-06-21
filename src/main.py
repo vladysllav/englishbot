@@ -1,17 +1,23 @@
+import os
+
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
 from dotenv import load_dotenv
-import os
+
+from src.utils import fake_user_data
+from src.user_statistics import UserService
+
 
 # Load environment variables from .env file
 load_dotenv()
-# {user_id: user_result}
-user_info_test = {324552: 50, 323552: 10, 322552: 50, 321552: 40, 327552: 60, 327542: 20, 324542: 30}
 
 
 class EnglishSkillsBot:
     def __init__(self):
-        self.app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+        self.token = os.getenv("TELEGRAM_TOKEN")
+        self.app = Application.builder().token(self.token).build()
+        self.users_data = fake_user_data()
+        self.user_service = UserService(self.users_data)
 
     def create_start_button(self):
         """
@@ -30,11 +36,15 @@ class EnglishSkillsBot:
         :return: InlineKeyboardMarkup buttons with lvl selection
         """
         buttons = [
-            [InlineKeyboardButton("Beginner", callback_data="Beginner")],
-            [InlineKeyboardButton("Intermediate", callback_data="Intermediate")],
-            [InlineKeyboardButton("Advanced", callback_data="Advanced")]
+            [InlineKeyboardButton("Beginner", callback_data="lvl_beginner")],
+            [InlineKeyboardButton("Intermediate", callback_data="lvl_intermediate")],
+            [InlineKeyboardButton("Advanced", callback_data="lvl_advanced")]
         ]
         return InlineKeyboardMarkup(buttons)
+
+    def check_user_exist(self, user_id: int) -> bool:
+        user = filter(lambda x: x.id == user_id, self.users_data)
+        return bool(list(user))
 
     async def start(self, update: Update, context: CallbackContext):
         """
@@ -42,9 +52,14 @@ class EnglishSkillsBot:
         :param update: The incoming update.
         :param context: The context object for handlers.
         """
-        reply_answer = self.create_start_button()
+        user_id = update.message.from_user.id
+        reply_answer = None  # TODO: remove later
+        if self.check_user_exist(user_id):
+            pass  # TODO: Create buttons with options get stats and pass ex again
+        else:
+            pass   # TODO: Create buttons for test
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Welcome to the English Skills Bot! How can I assist you?",
+                                       text="Welcome to the English Skills Bot! How can I assist you?",  # TODO: customize message depending on result
                                        reply_markup=reply_answer)
 
     async def statistics(self, update: Update, context: CallbackContext):
@@ -74,7 +89,7 @@ class EnglishSkillsBot:
             reply_answer = self.create_lvl_button()
             await query.message.reply_text("Please select your English level", reply_markup=reply_answer)
         elif query.data == "statistics":
-            if user_id in user_info_test:
+            if self.user_service.check_user_exist(user_id):
                 await self.statistics(update, context)
             else:
                 await context.bot.send_message(chat_id=update.effective_chat.id,
@@ -150,14 +165,17 @@ class EnglishSkillsBot:
     def start_bot(self):
         start_handler = CommandHandler('start', self.start)
         text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text)
-        callback_handler = CallbackQueryHandler(self.choose_level_callback)
+        other_callback = CallbackQueryHandler(self.other_callback, pattern='^advanced_q1*')
+        callback_handler = CallbackQueryHandler(self.choose_level_callback, pattern='^lvl_*')
 
         self.app.add_handler(start_handler)
         self.app.add_handler(text_handler)
+        self.app.add_handler(other_callback)
         self.app.add_handler(callback_handler)
 
         self.app.run_polling()
 
 
-bot = EnglishSkillsBot()
-bot.start_bot()
+if __name__ == '__main__':
+    bot = EnglishSkillsBot()
+    bot.start_bot()
