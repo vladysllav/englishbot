@@ -25,8 +25,7 @@ class EnglishSkillsBot:
         :return: InlineKeyboardMarkup Start button
         """
         buttons = [
-            [InlineKeyboardButton("Start", callback_data="start")],
-            [InlineKeyboardButton("Statistics", callback_data="statistics")]
+            [InlineKeyboardButton("Start", callback_data="start")]
         ]
         return InlineKeyboardMarkup(buttons)
 
@@ -42,26 +41,40 @@ class EnglishSkillsBot:
         ]
         return InlineKeyboardMarkup(buttons)
 
+    def create_stat_retake_button(self):
+        """
+        Create Statistics and Retake the test buttons
+        :return: InlineKeyboardMarkup Statistics and Retake buttons
+        """
+        buttons = [
+            [InlineKeyboardButton("Statistics", callback_data="statistics")],
+            [InlineKeyboardButton("Retake the test", callback_data="retake")]
+        ]
+        return InlineKeyboardMarkup(buttons)
+
     def check_user_exist(self, user_id: int) -> bool:
         user = filter(lambda x: x.id == user_id, self.users_data)
         return bool(list(user))
 
     async def start(self, update: Update, context: CallbackContext):
         """
-        Handles the /start command and sends a welcome message with the start button.
+        Handles the /start command and sends a welcome message with the Start button for a new user.
+        For existing users sends Statistics and Retake buttons.
         :param update: The incoming update.
         :param context: The context object for handlers.
         """
         user_id = update.message.from_user.id
-        reply_answer = None # TODO: remove later
+        reply_answer_exist_user = self.create_stat_retake_button()
+        reply_answer_new_user = self.create_start_button()
+
         if self.check_user_exist(user_id):
-            pass  # TODO: Create buttons with options get stats and pass ex again
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text="Welcome back! How can I assist you?",
+                                           reply_markup=reply_answer_exist_user)
         else:
-            pass   # TODO: Create buttons for test
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Welcome to the English Skills Bot! How can I assist you?",  # TODO: customize message depending on result
-                                       reply_markup=reply_answer)
-        await self.choose_level_callback(update, context)
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text="Welcome to the English Skills Bot! How can I assist you?",
+                                           reply_markup=reply_answer_new_user)
 
     async def statistics(self, update: Update, context: CallbackContext):
         """
@@ -80,37 +93,33 @@ class EnglishSkillsBot:
 
     async def choose_level_callback(self, update: Update, context: CallbackContext):
         """
-        Gets the user id, sends the level selection buttons to the user,
-        gets the user level, then calls the send_question function, passing the level and id parameters
+        Handle the callback query from buttons level
+        :param update: The incoming update.
+        :param context: The context object for handlers.
         """
-
-
         user_id = update.message.from_user.id
-
-        reply_answer = self.create_lvl_button()
-
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Change English level",
-                                       # TODO: customize message depending on result
-                                       reply_markup=reply_answer)
         query = update.callback_query
-        user_level = query.data if query.data else None
+        if query.data == "start":
+            reply_answer = self.create_lvl_button()
+            await query.message.reply_text("Please, select your English level", reply_markup=reply_answer)
+        else:
+            level = query.data
+            await self.send_question(update, context, level)
 
-        for user in self.users_data:
-            if user.id == user_id:
-                user.level = user_level
-                break
+    async def stat_retake_callback(self, update: Update, context: CallbackContext):
+        """
+        Handle the callback query from statistics and retake buttons
+        :param update: The incoming update.
+        :param context: The context object for handlers.
+        """
+        user_id = update.message.from_user.id
+        query = update.callback_query
+        if query.data == "statistics":
+            await self.statistics(update, context)
+        elif query.data == "retake":
+            reply_answer = self.create_lvl_button()
+            await query.message.reply_text("Please, select your English level", reply_markup=reply_answer)
 
-        # elif query.data == "statistics":
-        #     if self.user_service.check_user_exist(user_id):
-        #         await self.statistics(update, context)
-        #     else:
-        #         await context.bot.send_message(chat_id=update.effective_chat.id,
-        #                                        text="You have to answer the questions first!")
-        # else:
-        #     level = query.data
-        #     await self.send_question(update, context, level)
-        await self.send_question(update, context, user_level, user_id)
     def get_user_points(self, user_id):
         for user in self.users_data:
             if user.id == user_id:
@@ -204,11 +213,19 @@ class EnglishSkillsBot:
         callback_handler = CallbackQueryHandler(self.choose_level_callback, pattern='^lvl_*')
         answer_handler = CallbackQueryHandler(self.answer_handler, pattern='^[A-Z]$')
 
+        start_callback_handler = CallbackQueryHandler(self.choose_level_callback, pattern='^start')
+        statistics_callback_handler = CallbackQueryHandler(self.stat_retake_callback, pattern='^statistics')
+        retake_callback_handler = CallbackQueryHandler(self.stat_retake_callback, pattern='^retake')
+
         self.app.add_handler(start_handler)
         self.app.add_handler(text_handler)
         # self.app.add_handler(other_callback)
         self.app.add_handler(callback_handler)
         self.app.add_handler(answer_handler)
+
+        self.app.add_handler(start_callback_handler)
+        self.app.add_handler(statistics_callback_handler)
+        self.app.add_handler(retake_callback_handler)
 
         self.app.run_polling()
 
